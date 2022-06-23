@@ -1,0 +1,84 @@
+IMAGE_NAME = "bento/ubuntu-16.04"
+N = 1
+
+$setup_common = <<SCRIPT
+echo Install docker...
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io
+sed -i 's|-H fd://|-H fd:// -H tcp://0.0.0.0:2375|g' /lib/systemd/system/docker.service
+usermod -aG docker vagrant
+
+echo disable swap...
+swapoff -a
+# To avoid that the swap restart while restarting the VM
+sed -i '/swap/d' /etc/fstab 
+
+echo Installation of Kubernetes...
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+add-apt-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+apt-get update 
+apt-get install -y kubelet kubeadm kubectl kubernetes-cni
+systemctl enable kubelet
+
+SCRIPT
+
+$setup_master = <<SCRIPT
+echo Init the master...
+rm /etc/containerd/config.toml
+systemctl restart containerd
+kubeadm init --apiserver-advertise-address=192.168.10.10 --node-name $HOSTNAME --pod-network-cidr=10.244.0.0/16
+
+echo Prepare the join command...
+kubeadm token create --print-join-command > /vagrant/worker.sh
+
+echo Create the configuration file...
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+echo Add a pod for the intern network management...
+sysctl net.bridge.bridge-nf-call-iptables=1
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+SCRIPT
+
+$setup_nodes = <<SCRIPT
+echo The worker joins the cluster...
+/bin/bash /vagrant/worker.sh
+SCRIPT
+
+Vagrant.configure("2") do |config|
+          
+    config.vm.define "kubmaster" do |master|
+        master.vm.box = IMAGE_NAME
+        master.vm.network "private_network", ip: "192.168.10.10"
+        master.vm.hostname = "kubmaster"
+        master.vm.box_url = "bento/ubuntu-16.04"
+        master.vm.provider "virtualbox" do |v|
+            v.memory = 2048
+            v.cpus = 2
+            v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        end
+        master.vm.provision "shell", inline: $setup_common, privileged: true
+        master.vm.provision "shell", inline: $setup_master, privileged: true
+    end
+
+    (1..N).each do |i|
+        config.vm.define "kubnode-#{i}" do |node|
+            node.vm.box = IMAGE_NAME
+            node.vm.network "private_network", ip: "192.168.10.#{i + 10}"
+            node.vm.hostname = "kubnode-#{i}"
+            node.vm.box_url = "bento/ubuntu-16.04"
+            node.vm.provider "virtualbox" do |v|
+                v.memory = 1024
+                v.cpus = 2
+                v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+            end
+            node.vm.provision "shell", inline: $setup_common, privileged: true
+            node.vm.provision "shell", inline: $setup_nodes, privileged: true
+        end
+    end
+end
