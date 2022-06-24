@@ -28,12 +28,9 @@ SCRIPT
 
 $setup_master = <<SCRIPT
 echo Init the master...
-rm /etc/containerd/config.toml
-systemctl restart containerd
-kubeadm init --apiserver-advertise-address=192.168.10.10 --node-name $HOSTNAME --pod-network-cidr=10.244.0.0/16
-
-echo Prepare the join command...
-kubeadm token create --print-join-command > /vagrant/worker.sh
+sudo rm /etc/containerd/config.toml
+sudo systemctl restart containerd
+sudo kubeadm init --apiserver-advertise-address=192.168.10.10 --node-name $HOSTNAME --pod-network-cidr=10.244.0.0/16
 
 echo Create the configuration file...
 mkdir -p $HOME/.kube
@@ -41,8 +38,12 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 echo Add a pod network to cluster...
-sysctl net.bridge.bridge-nf-call-iptables=1
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+sudo sysctl net.bridge.bridge-nf-call-iptables=1
+sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+echo Prepare the join command...
+sudo kubeadm token create --print-join-command > /vagrant/worker.sh
+
 SCRIPT
 
 $setup_nodes = <<SCRIPT
@@ -65,7 +66,7 @@ Vagrant.configure("2") do |config|
             v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
         end
         master.vm.provision "shell", inline: $setup_common, privileged: true
-        master.vm.provision "shell", inline: $setup_master, privileged: true
+        master.vm.provision "shell", inline: $setup_master, privileged: false
     end
 
     (1..N).each do |i|
