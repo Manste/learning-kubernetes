@@ -39,7 +39,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 echo Add a pod network to cluster...
 sudo sysctl net.bridge.bridge-nf-call-iptables=1
-sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+sudo kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 echo Prepare the join command...
 sudo kubeadm token create --print-join-command > /vagrant/worker.sh
