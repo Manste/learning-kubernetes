@@ -52,9 +52,14 @@ SCRIPT
 
 $setup_nodes = <<SCRIPT
 echo The worker joins the cluster...
-rm /etc/containerd/config.toml
-systemctl restart containerd
-/bin/bash /vagrant/worker.sh
+sudo rm /etc/containerd/config.toml
+sudo systemctl restart containerd
+sudo /bin/bash /vagrant/worker.sh
+
+echo Create the configuration file...
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/kubelet.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -85,7 +90,7 @@ Vagrant.configure("2") do |config|
                 v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
             end
             node.vm.provision "shell", inline: $setup_common, privileged: true
-            node.vm.provision "shell", inline: $setup_nodes, privileged: true
+            node.vm.provision "shell", inline: $setup_nodes, privileged: false
         end
     end
 end
