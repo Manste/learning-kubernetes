@@ -1,0 +1,25 @@
+# Run a container
+kubectl run myshell -it --image busybox -- sh
+
+# pod = a container or set of docker containers
+# deployment = a pod or a set of pods
+kubectl create deployment mynginx --image nginx
+# service = gives access to pods
+kubectl create service nodeport mynginx --tcp=8080:80
+# others methods
+kubectl expose deployment mynginx --type NodePort --port 80 #Not recommended
+kubectl port-forward mynginx-pod-name 8080:80
+
+# scale deployment
+kubectl scale deployment mynginx --replicas=2
+kubectl autoscale deployment mynginx --min=2 --max=10
+
+# get logs
+kubectl logs pod-name
+
+# get configuration
+kubectl describe nodes
+kubectl describe pods pod-name
+kubectl describe service service-name
+kubectl describe deployment deployment-name
+
