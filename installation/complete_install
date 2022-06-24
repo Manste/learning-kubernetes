@@ -1,0 +1,20 @@
+apt-get install bash-autocompletion
+echo "source <(kubectl completion bash)" >> ~/.bashrc 
+
+#fix the aliases in ~/.bashrc
+alias k='kubectl'
+alias kcc='kubectl config current-context'
+alias kg='kubectl get'
+alias kga='kubectl get all --all-namespaces'
+alias kgp='kubectl get pods'
+alias kgs='kubectl get services'
+alias ksgp='kubectl get pods -n kube-system'
+alias kuc='kubectl config use-context'
+
+#remote access to cluster
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+add-apt-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+sudo apt-get update 
+sudo apt-get install -y kubectl
+mkdir ~/.kube
+ssh vagrant@192.168.10.10 "sudo cat /etc/kubernetes/admin.conf" > ~/.kube/config
